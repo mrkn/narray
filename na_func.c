@@ -11,6 +11,9 @@
 #include <ruby.h>
 #include "narray.h"
 #include "narray_local.h"
+#if (defined(HAVE_OPENCL_OPENCL_H) || defined(HAVE_CL_CL_H))
+void na_opencl_allocate( int nd, char *p1, char *p2, char *p3, struct slice *s1, struct slice *s2, struct slice *s3, void* kernel_func );
+#endif
 
 int
  na_max3(int a, int b, int c)
@@ -516,7 +519,16 @@ static void
   na_init_slice(s2, ndim, shp2, na_sizeof[a2->type] );
   na_init_slice(s3, ndim, shp3, na_sizeof[a3->type] );
 
+#if (defined(HAVE_OPENCL_OPENCL_H) || defined(HAVE_CL_CL_H))
+  if ((a2->type > NA_NONE) && (a2->type < NA_ROBJ) && (func != ModBFuncs[NA_SCOMPLEX]) && (func != ModBFuncs[NA_DCOMPLEX])) {
+    na_opencl_allocate( ndim, a1->ptr, a2->ptr, a3->ptr, s1, s2, s3, func );
+  }else {
+#else
   na_do_loop_binary( ndim, a1->ptr, a2->ptr, a3->ptr, s1, s2, s3, func );
+#endif
+#if (defined(HAVE_OPENCL_OPENCL_H) || defined(HAVE_CL_CL_H))
+  }
+#endif
   xfree(s1);
 }
 

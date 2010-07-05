@@ -63,6 +63,9 @@ void Init_na_funcs(void);
 void Init_na_linalg(void);
 void Init_na_random(void);
 
+#if (defined(HAVE_OPENCL_OPENCL_H) || defined(HAVE_CL_CL_H))
+void Init_na_opencl(void);
+#endif
 
 #ifdef DEBUG
 void na_xfree(void *ptr)
@@ -1300,4 +1303,9 @@ void
 
     /* NArray extention script */
     rb_require("narray_ext.rb");
+
+#if (defined(HAVE_OPENCL_OPENCL_H) || defined(HAVE_CL_CL_H))
+    /* For NArray on OpenCL */
+    Init_na_opencl();
+#endif
 }

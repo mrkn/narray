@@ -40,6 +40,7 @@ if RUBY_VERSION < '1.8'
     __install_rb(mfile, dest, srcdir)
     archdir = dest.sub(/sitelibdir/,"sitearchdir").sub(/rubylibdir/,"archdir")
     path = ['$(srcdir)/narray.h','narray_config.h']
+    path << ['na_kernel.cl','na_opencl.h']
     path << ['libnarray.a'] if /cygwin|mingw/ =~ RUBY_PLATFORM
     for f in path
       mfile.printf "\t@$(RUBY) -r ftools -e 'File::install(ARGV[0], ARGV[1], 0644, true)' %s %s\n", f, archdir
@@ -47,6 +48,8 @@ if RUBY_VERSION < '1.8'
   end
 else
   $INSTALLFILES = [['narray.h', '$(archdir)'], ['narray_config.h', '$(archdir)']] 
+  $INSTALLFILES << ['na_kernel.cl', '$(archdir)'] 
+  $INSTALLFILES << ['na_opencl.h', '$(archdir)'] 
   if /cygwin|mingw/ =~ RUBY_PLATFORM
 	 $INSTALLFILES << ['libnarray.a', '$(archdir)']
   end
@@ -81,6 +84,7 @@ na_random
 na_op
 na_math
 na_linalg
+na_opencl
 )
 
 header = "stdint.h"
@@ -110,6 +114,48 @@ have_type("uint32_t", header)
 #end
 
 $objs = srcs.collect{|i| i+".o"}
+
+## For NArray on OpenCL
+if have_header("OpenCL/opencl.h") # Apple OpenCL
+  $LDFLAGS += " -framework opencl"
+else # find Other OpenCL
+  if /cygwin|mingw/ =~ RUBY_PLATFORM && find_library("OpenCL","clGetDeviceInfo", ENV["PATH"])
+    nvidia_sdk = "c:/ProgramData/NVIDIA Corporation/NVIDIA GPU Computing SDK"
+    nvidia_lib = "#{nvidia_sdk}/OpenCL/common/lib/Win32"
+
+    amd_sdk = "c:/Program Files/ATI Stream"
+    amd_lib = "#{amd_sdk}/bin/x86"
+  elsif find_library("OpenCL","clGetDeviceInfo", ENV["LD_LIBRARY_PATH"])
+    nvidia_sdk = "#{ENV['HOME']}/NVIDIA_GPU_Computing_SDK"
+    if /x86_64/ =~ RUBY_PLATFORM
+      nvidia_lib = "#{nvidia_sdk}/OpenCL/common/lib/Linux64"
+
+      amd_sdk = "#{ENV['HOME']}/ati-stream-sdk-v2.0-beta4-lnx64"
+      amd_lib = "#{amd_sdk}/lib/x86_64"
+    else
+      nvidia_lib = "#{nvidia_sdk}/OpenCL/common/lib/Linux32"
+
+      amd_sdk = "#{ENV['HOME']}/ati-stream-sdk-v2.0-beta4-lnx32"
+      amd_lib = "#{amd_sdk}/lib/x86"
+    end
+    foxc_sdk = "../../../.."
+    foxc_lib = "#{foxc_sdk}/lib"
+    foxc_inc = "#{foxc_sdk}/include"
+  end
+  nvidia_inc = "#{nvidia_sdk}/OpenCL/common/inc"
+  amd_inc = "#{amd_sdk}/include"
+
+  if find_header("CL/cl.h", nvidia_inc)
+    have_header("CL/cl.h")
+    dir_config("narray", nvidia_inc, nvidia_lib)
+  elsif find_header("CL/cl.h", foxc_inc)
+    have_header("CL/cl.h")
+    #dir_config("narray", foxc_inc, "#{foxc_lib} -Wl,-rpath,#{foxc_lib}")
+  elsif find_header("CL/cl.h", amd_inc)
+    have_header("CL/cl.h")
+    dir_config("narray", amd_inc, "#{amd_lib} -Wl,-rpath,#{amd_lib}")
+  end
+end
 
 create_conf_h("narray_config.h")
 create_makefile("narray")

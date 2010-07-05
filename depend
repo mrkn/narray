@@ -9,6 +9,10 @@ na_math.c: mknafunc.rb mkmath.rb
 
 na_math.o: na_math.c narray.h $(hdrdir)/ruby.h
 
+na_kernel.cl: mknafunc.rb mkkernel.rb
+	$(RUBY) -I$(srcdir) $(srcdir)/mkkernel.rb $(RUBYARCHDIR)
+
+na_opencl.o: na_opencl.c na_kernel.cl na_opencl.h
 
 cleanall:  clean
-	@$(RM)  na_op.c na_math.c
+	@$(RM)  na_op.c na_math.c na_kernel.cl na_opencl.h
